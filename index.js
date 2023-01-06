@@ -19,8 +19,25 @@ async function run() {
     try {
         const userCollection = client.db('BikezPlug').collection('users');
 
+        // creating jwt token
+        app.get('/jwt', async (req, res) => {
+            const email = req.query.email;
+            const query = {email: email};
+            const user = await userCollection.findOne(query);
+            if (user) {
+                const token = jwt.sign({email}, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1d'});
+                return res.send({accessToken: token});
+            }
+            res.status(403).send({accessToken: ''});
+        });
+
         app.post('/users', async (req, res) => {
             const user = req.body;
+            const query = {email: user.email}
+            const usr = await userCollection.findOne(query);
+            if (usr) {
+                return res.status(403).send({message: 'User already exists'});
+            }
             const result = await userCollection.insertOne(user);
             res.send(result);
         });
