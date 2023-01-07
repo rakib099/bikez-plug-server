@@ -23,6 +23,7 @@ async function run() {
     try {
         const userCollection = client.db('BikezPlug').collection('users');
         const categoryTitleCollection = client.db('BikezPlug').collection('categoryTitles');
+        const bikeCollection = client.db('BikezPlug').collection('bikes');
 
         // creating jwt token
         app.get('/jwt', async (req, res) => {
@@ -53,6 +54,17 @@ async function run() {
             const query = {_id: ObjectId(id)};
             const title = await categoryTitleCollection.findOne(query);
             res.send(title);
+        });
+
+        // Bikes API
+        app.get('/bikes/category/:id', async (req, res) => {
+            const id = req.params.id;
+            console.log(id);
+            const query = {categoryId: id};
+            const cursor = bikeCollection.find(query);
+            const bikes = await cursor.toArray();
+            console.log(bikes);
+            res.send(bikes);
         });
     }
     finally {
