@@ -69,6 +69,17 @@ async function run() {
         // Booking API
         app.post('/bookings', async (req, res) => {
             const booking = req.body;
+            /* ------------- Checking If Already Booked ---------------- */
+            const query = {
+                email: booking.email,          
+                bikeId: booking.bikeId
+            }
+            const cursor = bookingCollection.find(query);
+            const alreadyBooked = await cursor.toArray();
+            if (alreadyBooked.length) {
+                return res.status(403).send({message: "This item is already booked by you!"});
+            }
+            /* --------------------------------------------------------- */
             const result = await bookingCollection.insertOne(booking);
             res.send(result);
         });
