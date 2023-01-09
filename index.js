@@ -103,7 +103,9 @@ async function run() {
             res.send(result);
         });
 
-        // USERS API
+        /* --------------
+            USERS API
+        --------------- */
         app.post('/users', async (req, res) => {
             const user = req.body;
             const query = { email: user.email }
@@ -135,6 +137,9 @@ async function run() {
             res.send(buyers);
         });
 
+        /* ---------------------
+            Category Titles API
+        ---------------------- */
         app.get('/category-titles/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
@@ -159,6 +164,25 @@ async function run() {
             }
             const bikes = await bikeCollection.find(query).toArray();
             res.send(bikes);
+        });
+
+        /* --------------------------------
+          Advertisement Toggle Button API
+        --------------------------------- */
+        app.patch('/bikes/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const advertised = req.body.advertised;
+            console.log(advertised)
+            const filter = {
+                _id: ObjectId(id)
+            }
+            const updatedDoc = {
+                $set: {
+                    advertised: !advertised
+                }
+            }
+            const result = await bikeCollection.updateOne(filter, updatedDoc);
+            res.send(result);
         });
 
         // Delete a bike (For sellers)
