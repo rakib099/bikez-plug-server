@@ -3,6 +3,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -40,6 +41,7 @@ async function run() {
         const categoryTitleCollection = client.db('BikezPlug').collection('categoryTitles');
         const bikeCollection = client.db('BikezPlug').collection('bikes');
         const bookingCollection = client.db('BikezPlug').collection('bookings');
+        const paymentCollection = client.db('BikezPlug').collection('payments');
 
         // creating jwt token
         app.get('/jwt', async (req, res) => {
@@ -51,6 +53,54 @@ async function run() {
                 return res.send({ accessToken: token });
             }
             res.status(403).send({ accessToken: '' });
+        });
+
+        /* ---------------
+            PAYMENT API
+        -----------------*/
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const { price } = req.body;
+            const amount = price * 100; // converted to cents
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                "payment_method_types": [
+                    "card"
+                ],
+            })
+
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
+
+        // add payments info to DB
+        app.post('/payments', verifyJWT, async (req, res) => {
+            const payment = req.body;
+            const result = await paymentCollection.insertOne(payment);
+            // update in bookingCollection
+            const id = payment.bookingId;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    transactionId: payment.transactionId
+                }
+            }
+            const updatedResult = await bookingCollection.updateOne(filter, updatedDoc);
+
+            // update in bikeCollection
+            const bikeId = payment.bikeId;
+            const query = { _id: ObjectId(bikeId) };
+            const updatedDoc2 = {
+                $set: {
+                    status: 'Sold'
+                }
+            }
+            const updatedResult2 = await bikeCollection.updateOne(query, updatedDoc2);
+            /* --------------------------------------------------- */
+            res.send(result);
         });
 
         // USERS API
@@ -101,6 +151,26 @@ async function run() {
             res.send(bikes);
         });
 
+        // Bikes Email-wise (For sellers)
+        app.get('/bikes', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            const query = {
+                sellerEmail: email
+            }
+            const bikes = await bikeCollection.find(query).toArray();
+            res.send(bikes);
+        });
+
+        // Delete a bike (For sellers)
+        app.delete('/bikes/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: ObjectId(id)
+            }
+            const result = await bikeCollection.deleteOne(query);
+            res.send(result);
+        });
+
         // Report an item
         app.patch('/bikes/reported/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
@@ -126,12 +196,22 @@ async function run() {
             res.send(reportedItems);
         });
 
+        // Delete a Reported item
+        app.delete('/reported/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: ObjectId(id)
+            }
+            const result = await bikeCollection.deleteOne(query);
+            res.send(result);
+        });
+
         // Booking API
         app.get('/bookings', verifyJWT, async (req, res) => {
             const email = req.query.email;
             const decoded = req.decoded;
             if (decoded.email !== email) {
-                return res.status(403).send({message: "Forbidden Access"});
+                return res.status(403).send({ message: "Forbidden Access" });
             }
             // console.log('You are valid user! Access Granted');
             let query = {}
@@ -142,6 +222,15 @@ async function run() {
             }
             const bookings = await bookingCollection.find(query).toArray();
             res.send(bookings);
+        });
+
+        app.get('/bookings/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: ObjectId(id)
+            }
+            const booking = await bookingCollection.findOne(query);
+            res.send(booking);
         });
 
         app.post('/bookings', verifyJWT, async (req, res) => {
@@ -206,6 +295,16 @@ async function run() {
             res.send({ isBuyer: user?.userType === "Buyer" });
         });
 
+        // useSeller hook API
+        app.get('/seller', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            const query = {
+                email: email
+            }
+            const user = await userCollection.findOne(query);
+            res.send({ isSeller: user?.userType === "Seller" });
+        });
+
         // useAdmin hook API
         app.get('/admin', verifyJWT, async (req, res) => {
             const email = req.query.email;
@@ -213,7 +312,7 @@ async function run() {
                 email: email
             }
             const user = await userCollection.findOne(query);
-            res.send({isAdmin: user?.userType === "Admin"});
+            res.send({ isAdmin: user?.userType === "Admin" });
         });
 
         // useVerification hook API
@@ -223,7 +322,7 @@ async function run() {
                 email: email
             }
             const user = await userCollection.findOne(query);
-            res.send({isSellerVerified: user?.verified === true});
+            res.send({ isSellerVerified: user?.verified === true });
         });
     }
     finally {
