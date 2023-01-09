@@ -14,20 +14,20 @@ app.use(express.json());
 const verifyJWT = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-        return res.status(401).send({message: "Unauthorized Access"});
+        return res.status(401).send({ message: "Unauthorized Access" });
     }
 
     const token = authHeader.split(' ')[1]
 
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function(err, decoded) {
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
         if (err) {
-            return res.status(403).send({message: "Forbidden Access"});
+            return res.status(403).send({ message: "Forbidden Access" });
         }
 
         req.decoded = decoded;
+        next();
     });
 
-    next();
 }
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.i9w8jvi.mongodb.net/?retryWrites=true&w=majority`;
@@ -44,30 +44,50 @@ async function run() {
         // creating jwt token
         app.get('/jwt', async (req, res) => {
             const email = req.query.email;
-            const query = {email: email};
+            const query = { email: email };
             const user = await userCollection.findOne(query);
             if (user) {
-                const token = jwt.sign({email}, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1d'});
-                return res.send({accessToken: token});
+                const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' });
+                return res.send({ accessToken: token });
             }
-            res.status(403).send({accessToken: ''});
+            res.status(403).send({ accessToken: '' });
         });
 
         // USERS API
         app.post('/users', async (req, res) => {
             const user = req.body;
-            const query = {email: user.email}
+            const query = { email: user.email }
             const usr = await userCollection.findOne(query);
             if (usr) {
-                return res.status(403).send({message: 'User already exists'});
+                return res.status(403).send({ message: 'User already exists' });
             }
             const result = await userCollection.insertOne(user);
             res.send(result);
         });
 
+        // Get Only Sellers
+        app.get('/users/sellers', verifyJWT, async (req, res) => {
+            const query = {
+                userType: "Seller"
+            }
+            const cursor = userCollection.find(query);
+            const sellers = await cursor.toArray();
+            res.send(sellers);
+        });
+
+        // Get Only Buyers
+        app.get('/users/buyers', verifyJWT, async (req, res) => {
+            const query = {
+                userType: "Buyer"
+            }
+            const cursor = userCollection.find(query);
+            const buyers = await cursor.toArray();
+            res.send(buyers);
+        });
+
         app.get('/category-titles/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {_id: ObjectId(id)};
+            const query = { _id: ObjectId(id) };
             const title = await categoryTitleCollection.findOne(query);
             res.send(title);
         });
@@ -75,28 +95,75 @@ async function run() {
         // Bikes API
         app.get('/bikes/category/:id', async (req, res) => {
             const id = req.params.id;
-            const query = {categoryId: id};
+            const query = { categoryId: id };
             const cursor = bikeCollection.find(query);
             const bikes = await cursor.toArray();
             res.send(bikes);
         });
 
         // Booking API
+        app.get('/bookings', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            const decoded = req.decoded;
+            if (decoded.email !== email) {
+                return res.status(403).send({message: "Forbidden Access"});
+            }
+            // console.log('You are valid user! Access Granted');
+            let query = {}
+            if (email) {
+                query = {
+                    email: email
+                }
+            }
+            const bookings = await bookingCollection.find(query).toArray();
+            res.send(bookings);
+        });
+
         app.post('/bookings', verifyJWT, async (req, res) => {
             const booking = req.body;
             /* ------------- Checking If Already Booked ---------------- */
             const query = {
-                email: booking.email,          
+                email: booking.email,
                 bikeId: booking.bikeId
             }
             const cursor = bookingCollection.find(query);
             const alreadyBooked = await cursor.toArray();
             if (alreadyBooked.length) {
-                return res.status(403).send({message: "This item is already booked by you!"});
+                return res.status(403).send({ message: "This item is already booked by you!" });
             }
             /* --------------------------------------------------------- */
             const result = await bookingCollection.insertOne(booking);
             res.send(result);
+        });
+
+        // useBuyer hook API
+        app.get('/buyer', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            const query = {
+                email: email
+            }
+            const user = await userCollection.findOne(query);
+            res.send({ isBuyer: user?.userType === "Buyer" });
+        });
+
+        // useAdmin hook API
+        app.get('/admin', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            const query = {
+                email: email
+            }
+            const user = await userCollection.findOne(query);
+            res.send({isAdmin: user?.userType === "Admin"});
+        });
+
+        // useVerification hook API
+        app.get('/verify', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            const query = {
+                email: email
+            }
+            const user = await userCollection.findOne(query);
+            res.send({isSellerVerified: user?.verified === true});
         });
     }
     finally {
