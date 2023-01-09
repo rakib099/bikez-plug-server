@@ -101,6 +101,31 @@ async function run() {
             res.send(bikes);
         });
 
+        // Report an item
+        app.patch('/bikes/reported/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const filter = {
+                _id: ObjectId(id)
+            }
+            const updatedDoc = {
+                $set: {
+                    reported: true
+                }
+            }
+            const result = await bikeCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        });
+
+        // Get Reported items
+        app.get('/reported', verifyJWT, async (req, res) => {
+            const query = {
+                reported: true
+            }
+            const cursor = bikeCollection.find(query);
+            const reportedItems = await cursor.toArray();
+            res.send(reportedItems);
+        });
+
         // Booking API
         app.get('/bookings', verifyJWT, async (req, res) => {
             const email = req.query.email;
@@ -148,6 +173,26 @@ async function run() {
                 }
             }
             const result = await userCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        });
+
+        // Seller Delete
+        app.delete('/sellers/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: ObjectId(id)
+            }
+            const result = await userCollection.deleteOne(query);
+            res.send(result);
+        });
+
+        // Buyer Delete
+        app.delete('/buyers/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: ObjectId(id)
+            }
+            const result = await userCollection.deleteOne(query);
             res.send(result);
         });
 
