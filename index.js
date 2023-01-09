@@ -136,6 +136,21 @@ async function run() {
             res.send(result);
         });
 
+        // Make a Seller Verified
+        app.patch('/sellers/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const filter = {
+                _id: ObjectId(id)
+            }
+            const updatedDoc = {
+                $set: {
+                    verified: true
+                }
+            }
+            const result = await userCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        });
+
         // useBuyer hook API
         app.get('/buyer', verifyJWT, async (req, res) => {
             const email = req.query.email;
@@ -158,7 +173,7 @@ async function run() {
 
         // useVerification hook API
         app.get('/verify', verifyJWT, async (req, res) => {
-            const email = req.params.email;
+            const email = req.query.email;
             const query = {
                 email: email
             }
