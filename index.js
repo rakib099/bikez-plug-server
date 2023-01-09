@@ -31,6 +31,7 @@ const verifyJWT = (req, res, next) => {
 
 }
 
+// Connected to MongoDB
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.i9w8jvi.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
@@ -137,9 +138,9 @@ async function run() {
             res.send(buyers);
         });
 
-        /* ---------------------
-            Category Titles API
-        ---------------------- */
+        /* ----------------------
+            CATEGORY TITLES API
+        ----------------------- */
         app.get('/category-titles/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
@@ -147,7 +148,9 @@ async function run() {
             res.send(title);
         });
 
-        // Bikes API
+        /* --------------------------
+            BIKES API (OR PRODUCTS)
+        --------------------------- */
         app.get('/bikes/category/:id', async (req, res) => {
             const id = req.params.id;
             const query = { categoryId: id };
@@ -195,8 +198,22 @@ async function run() {
             res.send(result);
         });
 
+
+
+        /* --------------
+            REPORTED API
+        ---------------- */
+        app.get('/reported', verifyJWT, async (req, res) => {
+            const query = {
+                reported: true
+            }
+            const cursor = bikeCollection.find(query);
+            const reportedItems = await cursor.toArray();
+            res.send(reportedItems);
+        });
+
         // Report an item
-        app.patch('/bikes/reported/:id', verifyJWT, async (req, res) => {
+        app.patch('/reported/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const filter = {
                 _id: ObjectId(id)
@@ -210,16 +227,6 @@ async function run() {
             res.send(result);
         });
 
-        // Get Reported items
-        app.get('/reported', verifyJWT, async (req, res) => {
-            const query = {
-                reported: true
-            }
-            const cursor = bikeCollection.find(query);
-            const reportedItems = await cursor.toArray();
-            res.send(reportedItems);
-        });
-
         // Delete a Reported item
         app.delete('/reported/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
@@ -230,7 +237,9 @@ async function run() {
             res.send(result);
         });
 
-        // Booking API
+        /* --------------
+            BOOKINGS API
+        ---------------- */
         app.get('/bookings', verifyJWT, async (req, res) => {
             const email = req.query.email;
             const decoded = req.decoded;
@@ -274,6 +283,10 @@ async function run() {
             res.send(result);
         });
 
+        /* ----------------------
+            SELLERS & BUYERS API
+        ---------------------- */
+
         // Make a Seller Verified
         app.patch('/sellers/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
@@ -308,6 +321,11 @@ async function run() {
             const result = await userCollection.deleteOne(query);
             res.send(result);
         });
+
+
+        /* --------------
+            HOOKS API
+        ---------------- */
 
         // useBuyer hook API
         app.get('/buyer', verifyJWT, async (req, res) => {
