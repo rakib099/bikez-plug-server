@@ -44,6 +44,19 @@ async function run() {
         const bookingCollection = client.db('BikezPlug').collection('bookings');
         const paymentCollection = client.db('BikezPlug').collection('payments');
 
+        // verifyAdmin middleware
+        const verifyAdmin = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = {
+                email: decodedEmail
+            }
+            const user = await userCollection.findOne(query);
+            if (user?.userType !== 'Admin') {
+                return res.status(403).send({message: 'Forbidden Access'});
+            }
+            next()
+        }
+
         // creating jwt token
         app.get('/jwt', async (req, res) => {
             const email = req.query.email;
@@ -168,24 +181,15 @@ async function run() {
             const bikes = await bikeCollection.find(query).toArray();
             res.send(bikes);
         });
-
-        /* --------------------------------
-          Advertisement Toggle Button API
-        --------------------------------- */
-        app.patch('/bikes/:id', verifyJWT, async (req, res) => {
-            const id = req.params.id;
-            const advertised = req.body.advertised;
-            console.log(advertised)
-            const filter = {
-                _id: ObjectId(id)
+        
+        // Bikes (Advertised)
+        app.get('/bikes/advertised', verifyJWT, async (req, res) => {
+            const query = {
+                advertised: true
             }
-            const updatedDoc = {
-                $set: {
-                    advertised: !advertised
-                }
-            }
-            const result = await bikeCollection.updateOne(filter, updatedDoc);
-            res.send(result);
+            const bikes = await bikeCollection.find(query).toArray();
+            console.log(bikes);
+            res.send(bikes);
         });
 
         // Delete a bike (For sellers)
@@ -195,6 +199,24 @@ async function run() {
                 _id: ObjectId(id)
             }
             const result = await bikeCollection.deleteOne(query);
+            res.send(result);
+        });
+
+        /* --------------------------------
+          Advertisement Toggle Button API
+        --------------------------------- */
+        app.patch('/bikes/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const advertised = req.body.advertised;
+            const filter = {
+                _id: ObjectId(id)
+            }
+            const updatedDoc = {
+                $set: {
+                    advertised: !advertised
+                }
+            }
+            const result = await bikeCollection.updateOne(filter, updatedDoc);
             res.send(result);
         });
 
