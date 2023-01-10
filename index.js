@@ -249,6 +249,20 @@ async function run() {
             res.send(result);
         });
 
+        app.patch('/unreport/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = {
+                _id: ObjectId(id)
+            }
+            const updatedDoc = {
+                $set: {
+                    reported: false
+                }
+            }
+            const result = await bikeCollection.updateOne(filter, updatedDoc);
+            res.send(result);
+        });
+
         // Delete a Reported item
         app.delete('/reported/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
