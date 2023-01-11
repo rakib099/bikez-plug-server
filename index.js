@@ -57,6 +57,19 @@ async function run() {
             next()
         }
 
+        // verifySeller middleware
+        const verifySeller = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = {
+                email: decodedEmail
+            }
+            const user = await userCollection.findOne(query);
+            if (user?.userType !== 'Seller') {
+                return res.status(403).send({message: 'Forbidden Access'});
+            }
+            next()
+        }
+
         // creating jwt token
         app.get('/jwt', async (req, res) => {
             const email = req.query.email;
@@ -188,8 +201,14 @@ async function run() {
                 advertised: true
             }
             const bikes = await bikeCollection.find(query).toArray();
-            console.log(bikes);
             res.send(bikes);
+        });
+
+        // Add a bike (For sellers)
+        app.post('/bikes', verifyJWT, verifySeller, async (req, res) => {
+            const bike = req.body;
+            const result = await bikeCollection.insertOne(bike);
+            res.send(result);
         });
 
         // Delete a bike (For sellers)
@@ -324,7 +343,7 @@ async function run() {
         ---------------------- */
 
         // Make a Seller Verified
-        app.patch('/sellers/:id', verifyJWT, async (req, res) => {
+        app.patch('/sellers/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = {
                 _id: ObjectId(id)
@@ -339,7 +358,7 @@ async function run() {
         });
 
         // Seller Delete
-        app.delete('/sellers/:id', verifyJWT, async (req, res) => {
+        app.delete('/sellers/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = {
                 _id: ObjectId(id)
@@ -349,7 +368,7 @@ async function run() {
         });
 
         // Buyer Delete
-        app.delete('/buyers/:id', verifyJWT, async (req, res) => {
+        app.delete('/buyers/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = {
                 _id: ObjectId(id)
@@ -380,6 +399,7 @@ async function run() {
                 email: email
             }
             const user = await userCollection.findOne(query);
+            console.log(user);
             res.send({ isSeller: user?.userType === "Seller" });
         });
 
