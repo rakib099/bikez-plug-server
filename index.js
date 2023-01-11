@@ -196,7 +196,7 @@ async function run() {
         });
         
         // Bikes (Advertised)
-        app.get('/bikes/advertised', verifyJWT, async (req, res) => {
+        app.get('/bikes/advertised', async (req, res) => {
             const query = {
                 advertised: true,
                 reported: false
@@ -384,7 +384,7 @@ async function run() {
         ---------------- */
 
         // useBuyer hook API
-        app.get('/buyer', verifyJWT, async (req, res) => {
+        app.get('/buyer', async (req, res) => {
             const email = req.query.email;
             const query = {
                 email: email
@@ -394,7 +394,7 @@ async function run() {
         });
 
         // useSeller hook API
-        app.get('/seller', verifyJWT, async (req, res) => {
+        app.get('/seller', async (req, res) => {
             const email = req.query.email;
             const query = {
                 email: email
@@ -405,7 +405,7 @@ async function run() {
         });
 
         // useAdmin hook API
-        app.get('/admin', verifyJWT, async (req, res) => {
+        app.get('/admin', async (req, res) => {
             const email = req.query.email;
             const query = {
                 email: email
@@ -415,7 +415,7 @@ async function run() {
         });
 
         // useVerification hook API
-        app.get('/verify', verifyJWT, async (req, res) => {
+        app.get('/verify', async (req, res) => {
             const email = req.query.email;
             const query = {
                 email: email
