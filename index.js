@@ -198,7 +198,8 @@ async function run() {
         // Bikes (Advertised)
         app.get('/bikes/advertised', verifyJWT, async (req, res) => {
             const query = {
-                advertised: true
+                advertised: true,
+                reported: false
             }
             const bikes = await bikeCollection.find(query).toArray();
             res.send(bikes);
@@ -212,7 +213,7 @@ async function run() {
         });
 
         // Delete a bike (For sellers)
-        app.delete('/bikes/:id', verifyJWT, async (req, res) => {
+        app.delete('/bikes/:id', verifyJWT, verifySeller, async (req, res) => {
             const id = req.params.id;
             const query = {
                 _id: ObjectId(id)
@@ -283,7 +284,7 @@ async function run() {
         });
 
         // Delete a Reported item
-        app.delete('/reported/:id', verifyJWT, async (req, res) => {
+        app.delete('/reported/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = {
                 _id: ObjectId(id)
